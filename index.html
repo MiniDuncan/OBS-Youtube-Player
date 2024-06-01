@@ -21,36 +21,39 @@
 
     <script>
       function info(txt) {
-        return (document.querySelector("#info").innerHTML = txt);
+        document.querySelector("#info").innerHTML = txt;
       }
 
       function debug(msg) {
-        debugMode ? console.log(msg) : null;
+        if (debugMode) {
+          console.log(msg);
+        }
       }
 
       const url = new URL(window.location.href);
 
       let songID = url.searchParams.get("watch?v");
       let listID = url.searchParams.get("list");
-      let title = url.searchParams.get("title") == "true" ? true : false;
+      let title = url.searchParams.get("title") === "true";
       let volume = url.searchParams.get("volume") || 45;
       let width = url.searchParams.get("w") || 534;
       let height = url.searchParams.get("h") || 300;
       let quality = url.searchParams.get("quality") || "default";
-      let forceQuality = url.searchParams.get("forcequality") == "true" ? true : false;
+      let forceQuality = url.searchParams.get("forcequality") === "true";
       let speed = url.searchParams.get('speed') || 1;
       let startSeconds = url.searchParams.get("t") || 0;
       let index = url.searchParams.get("index") || 0;
-      let random = url.searchParams.get("random") == "true" ? true : false;
-      let loop = url.searchParams.get("loop") == "false" ? false : true;
-      let fade = url.searchParams.get("fade") == "true" ? true : false;
-      let debugMode = url.searchParams.get("debug") == "true" ? true : false;
-      let hide = url.searchParams.get("hide") == "true" ? true : false;
-      let hideWhenStopped = url.searchParams.get('hideWhenStopped') == "true" ? true : false;
-      let controls = url.searchParams.get('controls') == "true" ? true : false;
+      let random = url.searchParams.get("random") === "true";
+      let loop = url.searchParams.get("loop") !== "false";
+      let fade = url.searchParams.get("fade") === "true";
+      let debugMode = url.searchParams.get("debug") === "true";
+      let hide = url.searchParams.get("hide") === "true";
+      let hideWhenStopped = url.searchParams.get('hideWhenStopped') === "true";
+      let controls = url.searchParams.get('controls') === "true";
 
-      // Hide/Show the title area
-      hide ? (document.querySelector("#player").style.display = "none") : null;
+      if (hide) {
+        document.querySelector("#player").style.display = "none";
+      }
 
       debug(`insert : videoID = ${songID} | listID = ${listID}`);
 
@@ -58,20 +61,19 @@
         const player = new YT.Player("player", {
           width: width,
           height: height,
-
           playerVars: {
-            autoplay: 1, // Auto-play the video on load
-            controls: controls === true ? 1 : 0, // Toggle pause/play buttons in player
-            showinfo: 0, // Hide the video title
-            modestbranding: 1, // Hide the Youtube Logo
+            autoplay: 1,
+            controls: controls ? 1 : 0,
+            showinfo: 0,
+            modestbranding: 1,
             playinline: 1,
-            disablekb: 1, // Disable keyboard shortcuts
-            fs: 0, // Hide the full screen button
-            cc_load_policy: 0, // Hide closed captions
-            iv_load_policy: 3, // Hide the Video Annotations
-            autohide: 1, // Hide video controls when playing
+            disablekb: 1,
+            fs: 0,
+            cc_load_policy: 0,
+            iv_load_policy: 3,
+            autohide: 1,
             enablejsapi: 1,
-            rel: 0, // Hide videos recommandations when stopped
+            rel: 0,
           },
           events: {
             onReady,
@@ -83,14 +85,9 @@
         });
 
         function onReady(event) {
-          // Enforcing defaults params
-          // Apply choose volume
           player.setVolume(volume);
-          // Apply choosen video quality
           player.setPlaybackQuality(quality);
-          // Apply choosen video speed
           player.setPlaybackRate(Number(speed));
-          // Toggle looping
           player.setLoop(loop);
 
           if (songID && listID) {
@@ -99,7 +96,6 @@
 
             player.addEventListener("onStateChange", ({ data }) => {
               if (data === 0) {
-                // Remark (HoPollo) : First video seems be played twice event without loop mode, quick fix is stopping and cue playlist to avoid that
                 player.stopVideo();
                 player.cuePlaylist({ list: listID });
               }
@@ -108,8 +104,6 @@
 
           if (!songID && listID) {
             debug("Playlist only detected");
-            // Remark: (HoPollo) : YT playlists seems to be flushed by default, event starting with de same index, the video is different
-
             player.loadPlaylist({ list: listID, index });
           }
 
@@ -117,36 +111,48 @@
             debug("Song only detected");
             player.cueVideoById({ videoId: songID });
           }
+
+          if (random) {
+            player.setShuffle(true);
+          }
         }
 
         function onStateChange(event) {
           switch (event.data) {
-            case -1: // Not started
-              shuffleSongs();
-              //debug("Not started");
+            case -1:
+              debug("Not started");
               break;
-            case 0: // Stopped
+            case 0:
               debug("Stopped");
               if (listID && loop) {
-                player.cuePlaylist({ list: listID, index })
+                if (random) {
+                  player.setShuffle(true);
+                }
+                player.nextVideo();
               }
-              hideWhenStopped && (document.querySelector("#container").style.display = "none");
+              if (hideWhenStopped) {
+                document.querySelector("#container").style.display = "none";
+              }
               break;
-            case 1: // Playing
+            case 1:
+              debug("Playing...");
               document.querySelector("#info").innerHTML = "";
-              debug("Playing... ");
-              hideWhenStopped && (document.querySelector("#container").style.display = "block");
+              if (hideWhenStopped) {
+                document.querySelector("#container").style.display = "block";
+              }
               onAir();
               break;
-            case 2: // Pause
+            case 2:
               debug("Paused...");
               onAir();
               break;
-            case 3: // Loading
+            case 3:
               debug("Loading...");
-              startSeconds > 0 && player.seekTo(startSeconds);
+              if (startSeconds > 0) {
+                player.seekTo(startSeconds);
+              }
               break;
-            case 5: // In queue
+            case 5:
               debug("Queued...");
               onAir();
               break;
@@ -156,45 +162,11 @@
           }
         }
 
-        // Toggle Shuffle();
-        let randomized = false;
-        function shuffleSongs() {
-          if(randomized){
-            return
-          }
-          if (random) {
-            player.setShuffle(true);
-          }
-
-          if (index !== 0) {
-            player.playVideo(index + 1); // 0 based indexes
-          }
-
-          if (!index && random) {
-            player.stopVideo();
-            player.nextVideo();
-          }
-          randomized=true;
-          /*
-          if (!randomized) {
-            player.stopVideo();
-            if (random) {
-              player.setShuffle(true);
-            }
-            player.nextVideo();
-
-            randomized = true;
-          }
-          */
-        }
-
         function onPlaybackQualityChange() {
-          debug(
-            `Video quality changed by Youtube${
-              forceQuality ? ", trying to force it back" : ""
-            }`
-          );
-          forceQuality && player.setPlaybackQuality(quality);
+          debug(`Video quality changed by Youtube${forceQuality ? ", trying to force it back" : ""}`);
+          if (forceQuality) {
+            player.setPlaybackQuality(quality);
+          }
         }
 
         function onPlaybackRateChange() {
@@ -208,16 +180,10 @@
         }
 
         function onAir() {
-          debug(`On air : ${player.playerInfo.videoData.title} by ${
-            player.playerInfo.videoData.author
-          }
+          debug(`On air : ${player.playerInfo.videoData.title} by ${player.playerInfo.videoData.author}
           Video Id        => ${player.playerInfo.videoData.video_id}
-          Queue position  => ${player.getPlaylistIndex() + 1}/${
-            player.getPlaylist() ? player.getPlaylist().length : "null"
-          }
-          Start at        => ${startSeconds}s/${Math.round(
-            Math.floor(player.getDuration())
-          )}s
+          Queue position  => ${player.getPlaylistIndex() + 1}/${player.getPlaylist() ? player.getPlaylist().length : "null"}
+          Start at        => ${startSeconds}s/${Math.round(Math.floor(player.getDuration()))}s
           Volume          => ${volume}%
           Quality         => ${player.getPlaybackQuality()}/${quality} (forced: ${forceQuality})
           Speed           => ${player.getPlaybackRate()} (changed to: ${speed})
@@ -230,7 +196,9 @@
           HideWhenStopped => ${hideWhenStopped}
           Controls        => ${controls}`);
 
-          if (title) document.getElementById('info').innerHTML = `<span id="songTitle">${player.playerInfo.videoData.title}</span> <span id="songAuthor">${player.playerInfo.videoData.author}</span>`;
+          if (title) {
+            document.getElementById('info').innerHTML = `<span id="songTitle">${player.playerInfo.videoData.title}</span> <span id="songAuthor">${player.playerInfo.videoData.author}</span>`;
+          }
 
           player.playVideo();
 
@@ -245,19 +213,21 @@
         function fading() {
           player.setVolume(0);
           const isPlaying = player.getPlayerState();
-          const videoLenght = player.getDuration();
+          const videoLength = player.getDuration();
           let i = 0;
 
           if (isPlaying === 1 && !fadeAlreadyDone) {
             const fadeUp = setInterval(() => {
               player.setVolume(i++);
               debug(`fadeUp (vol%) : ${i}/${volume}`);
-              i == parseInt(volume) && window.clearInterval(fadeUp);
+              if (i === parseInt(volume)) {
+                window.clearInterval(fadeUp);
+              }
             }, 250);
           }
 
           const fadeDownCooldown = setTimeout(() => {
-            if (i == volume) {
+            if (i === volume) {
               const fadeDown = setInterval(() => {
                 player.setVolume(i--);
                 debug(`fadeDown (vol%): ${i}`);
@@ -267,9 +237,10 @@
                 }
               }, 250);
             }
-          }, (videoLenght - 3) * 1000);
+          }, (videoLength - 3) * 1000);
         }
       }
     </script>
   </body>
 </html>
+

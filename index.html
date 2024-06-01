@@ -58,7 +58,6 @@
       debug(`insert : videoID = ${songID} | listID = ${listID}`);
 
       let player;
-      let isShuffled = false;
 
       function onYouTubeIframeAPIReady() {
         player = new YT.Player("player", {
@@ -96,23 +95,10 @@
         if (songID && listID) {
           debug("Given first video/song, playlist comes after");
           player.cueVideoById({ videoId: songID });
-
-          player.addEventListener("onStateChange", ({ data }) => {
-            if (data === 0) {
-              player.stopVideo();
-              player.cuePlaylist({ list: listID });
-              if (random) {
-                player.setShuffle(true);
-              }
-              player.playVideo();
-            }
-          });
         } else if (!songID && listID) {
           debug("Playlist only detected");
-          player.loadPlaylist({ list: listID, index: index });
-          if (random) {
-            player.setShuffle(true);
-          }
+          player.loadPlaylist({list: listID, index: index});
+          player.setShuffle(random);
         } else if (songID && !listID) {
           debug("Song only detected");
           player.cueVideoById({ videoId: songID });
@@ -120,60 +106,30 @@
       }
 
       function onStateChange(event) {
-        switch (event.data) {
-          case -1:
-            debug("Not started");
-            break;
-          case 0:
-            debug("Stopped");
-            if (listID) {
-              if (loop) {
-                player.nextVideo();
-              } else {
-                player.stopVideo();
-              }
-            }
-            if (hideWhenStopped) {
-              document.querySelector("#container").style.display = "none";
-            }
-            break;
-          case 1:
-            debug("Playing...");
-            document.querySelector("#info").innerHTML = "";
-            if (hideWhenStopped) {
-              document.querySelector("#container").style.display = "block";
-            }
-            onAir();
-            break;
-          case 2:
-            debug("Paused...");
-            onAir();
-            break;
-          case 3:
-            debug("Loading...");
-            if (startSeconds > 0) {
-              player.seekTo(startSeconds);
-            }
-            break;
-          case 5:
-            debug("Queued...");
-            onAir();
-            break;
-          default:
-            debug("default Play");
-            onAir();
+        if (event.data === YT.PlayerState.ENDED) {
+          debug("Video ended");
+          if (listID && random) {
+            player.setShuffle(true);
+          }
+          player.nextVideo();
+          if (hideWhenStopped) {
+            document.querySelector("#container").style.display = "none";
+          }
+        } else if (event.data === YT.PlayerState.PLAYING) {
+          debug("Playing...");
+          if (hideWhenStopped) {
+            document.querySelector("#container").style.display = "block";
+          }
         }
       }
 
       function onPlaybackQualityChange() {
-        debug(`Video quality changed by Youtube${forceQuality ? ", trying to force it back" : ""}`);
         if (forceQuality) {
           player.setPlaybackQuality(quality);
         }
       }
 
       function onPlaybackRateChange() {
-        debug('Video speed changed by Youtube, force it back');
         player.setPlaybackRate(Number(speed));
       }
 
@@ -183,65 +139,10 @@
       }
 
       function onAir() {
-        debug(`On air : ${player.playerInfo.videoData.title} by ${player.playerInfo.videoData.author}
-          Video Id        => ${player.playerInfo.videoData.video_id}
-          Queue position  => ${player.getPlaylistIndex() + 1}/${player.getPlaylist() ? player.getPlaylist().length : "null"}
-          Start at        => ${startSeconds}s/${Math.round(Math.floor(player.getDuration()))}s
-          Volume          => ${volume}%
-          Quality         => ${player.getPlaybackQuality()}/${quality} (forced: ${forceQuality})
-          Speed           => ${player.getPlaybackRate()} (changed to: ${speed})
-          Fade            => ${fade}
-          Randomize       => ${random}
-          Loop            => ${loop}
-          Height          => ${height}px
-          Width           => ${width}px
-          HideVideo       => ${hide}
-          HideWhenStopped => ${hideWhenStopped}
-          Controls        => ${controls}`);
-
+        // Update info with video title and author
         if (title) {
           document.getElementById('info').innerHTML = `<span id="songTitle">${player.playerInfo.videoData.title}</span> <span id="songAuthor">${player.playerInfo.videoData.author}</span>`;
         }
-
-        player.playVideo();
-
-        if (fade) {
-          fading();
-        } else {
-          player.setVolume(volume);
-        }
-      }
-
-      let fadeAlreadyDone = false;
-
-      function fading() {
-        player.setVolume(0);
-        const isPlaying = player.getPlayerState();
-        const videoLength = player.getDuration();
-        let i = 0;
-
-        if (isPlaying === 1 && !fadeAlreadyDone) {
-          const fadeUp = setInterval(() => {
-            player.setVolume(i++);
-            debug(`fadeUp (vol%) : ${i}/${volume}`);
-            if (i === parseInt(volume)) {
-              window.clearInterval(fadeUp);
-            }
-          }, 250);
-        }
-
-        const fadeDownCooldown = setTimeout(() => {
-          if (i === volume) {
-            const fadeDown = setInterval(() => {
-              player.setVolume(i--);
-              debug(`fadeDown (vol%): ${i}`);
-              if (i <= 1) {
-                window.clearInterval(fadeDown);
-                window.clearTimeout(fadeDownCooldown);
-              }
-            }, 250);
-          }
-        }, (videoLength - 3) * 1000);
       }
     </script>
   </body>

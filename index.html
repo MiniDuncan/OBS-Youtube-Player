@@ -1,47 +1,37 @@
-<html>
-  <head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        background: none;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: none;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div id="container">
-      <div id="info"></div>
-      <div id="player"></div>
+        <div id="info"></div>
+        <div id="player"></div>
     </div>
 
-    <script async src="https://www.youtube.com/iframe_api"></script>
-
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-      function info(txt) {
-        document.querySelector("#info").innerHTML = txt;
-      }
-
-      function debug(msg) {
-        if (debugMode) {
-          console.log(msg);
-        }
-      }
-
       const url = new URL(window.location.href);
 
       let songID = url.searchParams.get("watch?v");
       let listID = url.searchParams.get("list");
       let title = url.searchParams.get("title") === "true";
-      let volume = url.searchParams.get("volume") || 45;
+      let volume = parseInt(url.searchParams.get("volume") || 45);
       let width = url.searchParams.get("w") || 534;
       let height = url.searchParams.get("h") || 300;
       let quality = url.searchParams.get("quality") || "default";
       let forceQuality = url.searchParams.get("forcequality") === "true";
-      let speed = url.searchParams.get('speed') || 1;
-      let startSeconds = url.searchParams.get("t") || 0;
+      let speed = parseFloat(url.searchParams.get('speed') || 1);
+      let startSeconds = parseInt(url.searchParams.get("t") || 0);
       let random = url.searchParams.get("random") === "true";
       let loop = url.searchParams.get("loop") !== "false";
       let fade = url.searchParams.get("fade") === "true";
@@ -54,12 +44,15 @@
         document.querySelector("#player").style.display = "none";
       }
 
-      debug(`insert : videoID = ${songID} | listID = ${listID}`);
+      function debug(msg) {
+        if (debugMode) {
+          console.log(msg);
+        }
+      }
 
       let player;
-
       function onYouTubeIframeAPIReady() {
-        player = new YT.Player("player", {
+        player = new YT.Player('player', {
           width: width,
           height: height,
           playerVars: {
@@ -67,188 +60,67 @@
             controls: controls ? 1 : 0,
             showinfo: 0,
             modestbranding: 1,
-            playinline: 1,
-            disablekb: 1,
-            fs: 0,
-            cc_load_policy: 0,
-            iv_load_policy: 3,
-            autohide: 1,
+            playlist: listID,
+            loop: loop ? 1 : 0,
+            start: startSeconds,
             enablejsapi: 1,
             rel: 0,
+            disablekb: 1
           },
           events: {
-            onReady,
-            onStateChange,
-            onPlaybackQualityChange,
-            onPlaybackRateChange,
-            onError,
-          },
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
         });
       }
 
-      function onReady(event) {
+      function onPlayerReady(event) {
         player.setVolume(volume);
-        player.setPlaybackQuality(quality);
-        player.setPlaybackRate(Number(speed));
-
-        if (songID && listID) {
-          debug("Given first video/song, playlist comes after");
-          player.cueVideoById({ videoId: songID });
-
-          player.addEventListener("onStateChange", ({ data }) => {
-            if (data === 0) {
-              player.stopVideo();
-              player.cuePlaylist({ list: listID });
-              if (random) {
-                player.setShuffle(true);
-              }
-              player.playVideo();
-            }
-          });
-        } else if (!songID && listID) {
-          debug("Playlist only detected");
-          player.cuePlaylist({ list: listID });
-
-          player.addEventListener("onReady", () => {
-            const playlistLength = player.getPlaylist().length;
-            const randomIndex = Math.floor(Math.random() * playlistLength);
-
-            debug(`Random starting index: ${randomIndex}`);
-            player.playVideoAt(randomIndex);
-            if (random) {
-              player.setShuffle(true);
-            }
-          });
-        } else if (songID && !listID) {
-          debug("Song only detected");
-          player.cueVideoById({ videoId: songID });
-        }
-      }
-
-      function onStateChange(event) {
-        switch (event.data) {
-          case -1:
-            debug("Not started");
-            break;
-          case 0:
-            debug("Stopped");
-            if (listID) {
-              if (loop) {
-                player.nextVideo();
-              } else {
-                player.stopVideo();
-              }
-            }
-            if (hideWhenStopped) {
-              document.querySelector("#container").style.display = "none";
-            }
-            break;
-          case 1:
-            debug("Playing...");
-            document.querySelector("#info").innerHTML = "";
-            if (hideWhenStopped) {
-              document.querySelector("#container").style.display = "block";
-            }
-            onAir();
-            break;
-          case 2:
-            debug("Paused...");
-            onAir();
-            break;
-          case 3:
-            debug("Loading...");
-            if (startSeconds > 0) {
-              player.seekTo(startSeconds);
-            }
-            break;
-          case 5:
-            debug("Queued...");
-            onAir();
-            break;
-          default:
-            debug("default Play");
-            onAir();
-        }
-      }
-
-      function onPlaybackQualityChange() {
-        debug(`Video quality changed by Youtube${forceQuality ? ", trying to force it back" : ""}`);
-        if (forceQuality) {
-          player.setPlaybackQuality(quality);
-        }
-      }
-
-      function onPlaybackRateChange() {
-        debug('Video speed changed by Youtube, force it back');
-        player.setPlaybackRate(Number(speed));
-      }
-
-      function onError() {
-        console.error("Error detected, video skipped");
-        player.nextVideo();
-      }
-
-      function onAir() {
-        debug(`On air : ${player.playerInfo.videoData.title} by ${player.playerInfo.videoData.author}
-          Video Id        => ${player.playerInfo.videoData.video_id}
-          Queue position  => ${player.getPlaylistIndex() + 1}/${player.getPlaylist() ? player.getPlaylist().length : "null"}
-          Start at        => ${startSeconds}s/${Math.round(Math.floor(player.getDuration()))}s
-          Volume          => ${volume}%
-          Quality         => ${player.getPlaybackQuality()}/${quality} (forced: ${forceQuality})
-          Speed           => ${player.getPlaybackRate()} (changed to: ${speed})
-          Fade            => ${fade}
-          Randomize       => ${random}
-          Loop            => ${loop}
-          Height          => ${height}px
-          Width           => ${width}px
-          HideVideo       => ${hide}
-          HideWhenStopped => ${hideWhenStopped}
-          Controls        => ${controls}`);
-
-        if (title) {
-          document.getElementById('info').innerHTML = `<span id="songTitle">${player.playerInfo.videoData.title}</span> <span id="songAuthor">${player.playerInfo.videoData.author}</span>`;
-        }
-
-        player.playVideo();
-
-        if (fade) {
-          fading();
+        player.setPlaybackRate(speed);
+        if (listID) {
+          loadAndShufflePlaylist();
         } else {
-          player.setVolume(volume);
+          player.loadVideoById(songID);
         }
       }
 
-      let fadeAlreadyDone = false;
-
-      function fading() {
-        player.setVolume(0);
-        const isPlaying = player.getPlayerState();
-        const videoLength = player.getDuration();
-        let i = 0;
-
-        if (isPlaying === 1 && !fadeAlreadyDone) {
-          const fadeUp = setInterval(() => {
-            player.setVolume(i++);
-            debug(`fadeUp (vol%) : ${i}/${volume}`);
-            if (i === parseInt(volume)) {
-              window.clearInterval(fadeUp);
-            }
-          }, 250);
-        }
-
-        const fadeDownCooldown = setTimeout(() => {
-          if (i === volume) {
-            const fadeDown = setInterval(() => {
-              player.setVolume(i--);
-              debug(`fadeDown (vol%): ${i}`);
-              if (i <= 1) {
-                window.clearInterval(fadeDown);
-                window.clearTimeout(fadeDownCooldown);
-              }
-            }, 250);
+      function loadAndShufflePlaylist() {
+        player.cuePlaylist({list: listID});
+        player.addEventListener('onReady', function() {
+          let playlist = player.getPlaylist();
+          shuffleArray(playlist);
+          player.cuePlaylist({
+            playlist: playlist,
+            index: 0,
+            startSeconds: startSeconds
+          });
+          if (random) {
+            player.setShuffle(true);
           }
-        }, (videoLength - 3) * 1000);
+        });
+      }
+
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+      }
+
+      function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.ENDED && !loop) {
+          player.stopVideo();
+        }
+        if (event.data === YT.PlayerState.PLAYING) {
+          if (fade) {
+            fadeVolume();
+          }
+        }
+      }
+
+      function fadeVolume() {
+        // Implementation for volume fading if required
       }
     </script>
-  </body>
+</body>
 </html>

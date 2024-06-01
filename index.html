@@ -96,7 +96,7 @@
             player.addEventListener("onStateChange", ({ data }) => {
               if (data === 0) {
                 player.stopVideo();
-                player.cuePlaylist({ list: listID, index: index });
+                player.cuePlaylist({ list: listID });
                 if (random) {
                   player.setShuffle(true);
                 }

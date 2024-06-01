@@ -42,7 +42,6 @@
       let forceQuality = url.searchParams.get("forcequality") === "true";
       let speed = url.searchParams.get('speed') || 1;
       let startSeconds = url.searchParams.get("t") || 0;
-      let index = parseInt(url.searchParams.get("index")) || 0;
       let random = url.searchParams.get("random") === "true";
       let loop = url.searchParams.get("loop") !== "false";
       let fade = url.searchParams.get("fade") === "true";
@@ -108,15 +107,14 @@
           });
         } else if (!songID && listID) {
           debug("Playlist only detected");
-
-          // Get the playlist length and select a random index
           player.cuePlaylist({ list: listID });
+
           player.addEventListener("onReady", () => {
             const playlistLength = player.getPlaylist().length;
             const randomIndex = Math.floor(Math.random() * playlistLength);
 
             debug(`Random starting index: ${randomIndex}`);
-            player.loadPlaylist({ list: listID, index: randomIndex });
+            player.playVideoAt(randomIndex);
             if (random) {
               player.setShuffle(true);
             }

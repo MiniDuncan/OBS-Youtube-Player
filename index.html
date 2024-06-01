@@ -88,7 +88,6 @@
           player.setVolume(volume);
           player.setPlaybackQuality(quality);
           player.setPlaybackRate(Number(speed));
-          player.setLoop(loop);
 
           if (songID && listID) {
             debug("Given first video/song, playlist comes after");
@@ -97,23 +96,22 @@
             player.addEventListener("onStateChange", ({ data }) => {
               if (data === 0) {
                 player.stopVideo();
-                player.cuePlaylist({ list: listID });
+                player.cuePlaylist({ list: listID, index: index });
+                if (random) {
+                  player.setShuffle(true);
+                }
+                player.playVideo();
               }
             });
-          }
-
-          if (!songID && listID) {
+          } else if (!songID && listID) {
             debug("Playlist only detected");
-            player.loadPlaylist({ list: listID, index });
-          }
-
-          if (songID && !listID) {
+            player.loadPlaylist({ list: listID, index: index });
+            if (random) {
+              player.setShuffle(true);
+            }
+          } else if (songID && !listID) {
             debug("Song only detected");
             player.cueVideoById({ videoId: songID });
-          }
-
-          if (random) {
-            player.setShuffle(true);
           }
         }
 
@@ -124,11 +122,15 @@
               break;
             case 0:
               debug("Stopped");
-              if (listID && loop) {
+              if (listID) {
                 if (random) {
                   player.setShuffle(true);
                 }
-                player.nextVideo();
+                if (loop) {
+                  player.nextVideo();
+                } else {
+                  player.stopVideo();
+                }
               }
               if (hideWhenStopped) {
                 document.querySelector("#container").style.display = "none";
@@ -243,4 +245,3 @@
     </script>
   </body>
 </html>
-

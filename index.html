@@ -58,7 +58,6 @@
       debug(`insert : videoID = ${songID} | listID = ${listID}`);
 
       let player;
-      let isShuffled = false;
 
       function onYouTubeIframeAPIReady() {
         player = new YT.Player("player", {
@@ -109,10 +108,19 @@
           });
         } else if (!songID && listID) {
           debug("Playlist only detected");
-          player.loadPlaylist({ list: listID, index: index });
-          if (random) {
-            player.setShuffle(true);
-          }
+
+          // Get the playlist length and select a random index
+          player.cuePlaylist({ list: listID });
+          player.addEventListener("onReady", () => {
+            const playlistLength = player.getPlaylist().length;
+            const randomIndex = Math.floor(Math.random() * playlistLength);
+
+            debug(`Random starting index: ${randomIndex}`);
+            player.loadPlaylist({ list: listID, index: randomIndex });
+            if (random) {
+              player.setShuffle(true);
+            }
+          });
         } else if (songID && !listID) {
           debug("Song only detected");
           player.cueVideoById({ videoId: songID });

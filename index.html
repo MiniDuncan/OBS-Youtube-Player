@@ -58,7 +58,8 @@
       debug(`insert : videoID = ${songID} | listID = ${listID}`);
 
       let player;
-      
+      let isShuffled = false;
+
       function onYouTubeIframeAPIReady() {
         player = new YT.Player("player", {
           width: width,
@@ -126,9 +127,6 @@
           case 0:
             debug("Stopped");
             if (listID) {
-              if (random) {
-                player.setShuffle(true);
-              }
               if (loop) {
                 player.nextVideo();
               } else {
@@ -244,34 +242,6 @@
             }, 250);
           }
         }, (videoLength - 3) * 1000);
-      }
-
-      function onYouTubeIframeAPIReady() {
-        player = new YT.Player("player", {
-          width: width,
-          height: height,
-          playerVars: {
-            autoplay: 1,
-            controls: controls ? 1 : 0,
-            showinfo: 0,
-            modestbranding: 1,
-            playinline: 1,
-            disablekb: 1,
-            fs: 0,
-            cc_load_policy: 0,
-            iv_load_policy: 3,
-            autohide: 1,
-            enablejsapi: 1,
-            rel: 0,
-          },
-          events: {
-            onReady,
-            onStateChange,
-            onPlaybackQualityChange,
-            onPlaybackRateChange,
-            onError,
-          },
-        });
       }
     </script>
   </body>
